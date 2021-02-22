@@ -1,5 +1,4 @@
 <?php
-// Continue to Listando o feed (3/3).
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\AuthController;
@@ -7,10 +6,6 @@ use App\Http\Controllers\FeedController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\SearchController;
-
-Route::get('/ping', function(){
-  return ['pong' => true];
-});
 
 Route::get('/401', [AuthController::class, 'unauthorized'])->name('login');
 Route::post('/user', [AuthController::class, 'create']);
@@ -27,7 +22,12 @@ Route::middleware('auth:api')->group(function() {
 
   Route::get('/feed', [FeedController::class, 'read']);
   Route::get('/user/feed', [FeedController::class, 'userFeed']);
+  Route::get('/user/photos', [FeedController::class, 'userPhotos']);
+
   Route::get('/user/{id}/feed', [FeedController::class, 'userFeed']);
+  Route::post('/user/{id}/follow', [UserController::class, 'follow']);
+  Route::get('/user/{id}/followers', [UserController::class, 'followers']);
+  Route::get('/user/{id}/photos', [FeedController::class, 'userPhotos']);
 
   Route::get('/user', [UserController::class, 'read']);
   Route::get('/user/{id}', [UserController::class, 'read']);

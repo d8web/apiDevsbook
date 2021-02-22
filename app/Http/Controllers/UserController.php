@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Auth;
 use Intervention\Image\Facades\Image;
 
 use App\Models\User;
+use App\Models\Post;
+use App\Models\UserRelation;
 
 class UserController extends Controller
 {
@@ -153,5 +155,125 @@ class UserController extends Controller
 
     return $array;
   }
+
+  public function read($id = false)
+  {
+    $array = ['error' => ''];
+
+    if($id) {
+      $info = User::find($id);
+
+      if(!$info) {
+        $array['error'] = 'Usuário não existe!';
+        return $array;
+      }
+    } else {
+      $info = Auth::user();
+    }
+
+    $loggedUserId = Auth::user();
+    // Modify avatar with cover to url correct in array $info.
+    $info['avatar'] = url('media/avatars/'.$info['avatar']);
+    $info['cover'] = url('media/covers/'.$info['cover']);
+
+    // Verify if user id = loggedUserId, return true or false
+    $info['me'] = ($info['id'] == $loggedUserId['id']) ? true : false;
+
+    // Get and mount age from user information
+    $dateFrom = new \DateTime($info['birthdate']);
+    $dateTo = new \DateTime('today');
+    $info['age'] = $dateFrom->diff($dateTo)->y;
+
+    // Get total numeric value followers and following and photos from user
+    $info['followers'] = UserRelation::where('user_to', $info['id'])->count();
+    $info['following'] = UserRelation::where('user_from', $info['id'])->count();
+    $info['photos'] = Post::where('id_user', $info['id'])->where('type', 'photo')->count();
+
+    // Get info if user logged 'following' user id
+    $hasRelation = UserRelation::where('user_from', $loggedUserId['id'])
+      ->where('user_to', $info['id'])
+      ->count();
+    $info['isFollowing'] = ($hasRelation > 0) ? true : false;
+
+    $array['data'] = $info;
+    return $array;
+  }
+
+  public function follow($id)
+  {
+    $array = ['error' => ''];
+
+    $loggedUserId = Auth::user();
+    if($loggedUserId['id'] == $id) {
+      $array['error'] = 'Você não pode seguir você mesmo!';
+      return $array;
+    }
+
+    $userExists = User::find($id);
+    if($userExists) {
+
+      $relation = UserRelation::where('user_from', $loggedUserId['id'])
+        ->where('user_to', $id)
+        ->first();
+
+      // Unfollow
+      if($relation)
+      {
+        $relation->delete();
+      } else {
+        // Follow
+        $newRelation = new UserRelation();
+        $newRelation->user_from = $loggedUserId['id'];
+        $newRelation->user_to = $id;
+        $newRelation->save();
+      }
+
+    } else {
+      $array['error'] = 'Usuário não existe!';
+      return $array;
+    }
+
+    return $array;
+  }
+
+  public function followers($id)
+  {
+    $array = ['error' => ''];
+
+    $userExists = User::find($id);
+    if($userExists) {
+
+      $followers = UserRelation::where('user_to', $id)->get();
+      $following = UserRelation::where('user_from', $id)->get();
+
+      $array['followers'] = [];
+      $array['following'] = [];
+
+      foreach($followers as $item) {
+        $user = User::find($item['user_from']);
+        $array['followers'][] = [
+            'id' => $user['id'],
+            'name' => $user['name'],
+            'avatar' => url('media/avatars/'.$user['avatar'])
+        ];
+      }
+
+      foreach($following as $item) {
+        $user = User::find($item['user_from']);
+        $array['following'][] = [
+            'id' => $user['id'],
+            'name' => $user['name'],
+            'avatar' => url('media/avatar/'.$user['avatar'])
+        ];
+      }
+
+    } else {
+      $array['error'] = 'Usuário não existe!';
+      return $array;
+    }
+
+    return $array;
+  }
+
 
 }
